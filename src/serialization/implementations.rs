@@ -7,10 +7,15 @@ use std::{
     num::NonZeroU32,
 };
 
-use crate::{archive::{SerializedFlags, SerializedObjectVersion}, serialization::{
-    ArrayStreamInfo, Deferrable, Parseable, ReadInfo, SingleItemStreamInfo, Skippable,
-    StreamInfo,
-}, AssetHeader, Error, NameReference, ObjectExport, ObjectImport, ObjectVersion, ObjectVersionUE5, Result, ThumbnailInfo};
+use crate::{
+    AssetHeader, Error, NameReference, ObjectExport, ObjectImport, ObjectVersion, ObjectVersionUE5,
+    Result, ThumbnailInfo,
+    archive::{SerializedFlags, SerializedObjectVersion},
+    serialization::{
+        ArrayStreamInfo, Deferrable, Parseable, ReadInfo, SingleItemStreamInfo, Skippable,
+        StreamInfo,
+    },
+};
 
 impl<T> Deferrable for T
 where
@@ -509,25 +514,34 @@ impl Parseable for UnrealObjectExport {
     ) -> Result<Self::ParsedType>
     where
         R: Seek
-        + Read
-        + SerializedObjectVersion<ObjectVersion>
-        + SerializedObjectVersion<ObjectVersionUE5>
-        + SerializedFlags,
+            + Read
+            + SerializedObjectVersion<ObjectVersion>
+            + SerializedObjectVersion<ObjectVersionUE5>
+            + SerializedFlags,
     {
         let class_index = reader.read_le()?;
         let super_index = reader.read_le()?;
 
-        let template_index = if reader.serialized_with(ObjectVersion::VER_UE4_TemplateIndex_IN_COOKED_EXPORTS) {
-            reader.read_le()?
-        } else { 0 };
+        let template_index =
+            if reader.serialized_with(ObjectVersion::VER_UE4_TemplateIndex_IN_COOKED_EXPORTS) {
+                reader.read_le()?
+            } else {
+                0
+            };
 
         let outer_index = reader.read_le()?;
         let object_name = UnrealNameReference::parse_inline(reader)?;
         let object_flags = reader.read_le()?;
 
-        let (serial_size, serial_offset) = if reader.serialized_with(ObjectVersion::VER_UE4_64BIT_EXPORTMAP_SERIALSIZES) {
-            (reader.read_le()?, reader.read_le()?)
-        } else { (reader.read_le::<i32>()? as i64, reader.read_le::<i32>()? as i64) };
+        let (serial_size, serial_offset) =
+            if reader.serialized_with(ObjectVersion::VER_UE4_64BIT_EXPORTMAP_SERIALSIZES) {
+                (reader.read_le()?, reader.read_le()?)
+            } else {
+                (
+                    reader.read_le::<i32>()? as i64,
+                    reader.read_le::<i32>()? as i64,
+                )
+            };
 
         let forced_export = reader.read_le::<u32>()? != 0;
         let not_for_client = reader.read_le::<u32>()? != 0;
@@ -537,42 +551,60 @@ impl Parseable for UnrealObjectExport {
             let _package_guid = UnrealGuid::seek_past(reader)?;
         }
 
-        let is_inherited_instance = if reader.serialized_with(ObjectVersionUE5::TRACK_OBJECT_EXPORT_IS_INHERITED) {
+        let is_inherited_instance =
+            if reader.serialized_with(ObjectVersionUE5::TRACK_OBJECT_EXPORT_IS_INHERITED) {
+                reader.read_le::<u32>()? != 0
+            } else {
+                false
+            };
+
+        let package_flags = reader.read_le()?;
+
+        let not_always_loaded_for_editor_game =
+            if reader.serialized_with(ObjectVersion::VER_UE4_LOAD_FOR_EDITOR_GAME) {
+                reader.read_le::<u32>()? != 0
+            } else {
+                true
+            };
+
+        let is_asset =
+            if reader.serialized_with(ObjectVersion::VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT) {
+                reader.read_le::<u32>()? != 0
+            } else {
+                false
+            };
+
+        let generate_public_hash = if reader.serialized_with(ObjectVersionUE5::OPTIONAL_RESOURCES) {
             reader.read_le::<u32>()? != 0
         } else {
             false
         };
 
-        let package_flags = reader.read_le()?;
-
-        let not_always_loaded_for_editor_game = if reader.serialized_with(ObjectVersion::VER_UE4_LOAD_FOR_EDITOR_GAME)
-        {
-            reader.read_le::<u32>()? != 0
-        } else { true };
-
-
-        let is_asset = if reader.serialized_with(ObjectVersion::VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
-        {
-            reader.read_le::<u32>()? != 0
-        } else { false };
-
-        let generate_public_hash = if reader.serialized_with(ObjectVersionUE5::OPTIONAL_RESOURCES)
-        {
-            reader.read_le::<u32>()? != 0
-        } else { false };
-
-        let (first_export_dependency,
+        let (
+            first_export_dependency,
             serialization_before_serialization_dependencies,
             create_before_serialization_dependencies,
             serialization_before_create_dependencies,
-            create_before_create_dependencies) = if reader.serialized_with(ObjectVersion::VER_UE4_PRELOAD_DEPENDENCIES_IN_COOKED_EXPORTS)
+            create_before_create_dependencies,
+        ) = if reader.serialized_with(ObjectVersion::VER_UE4_PRELOAD_DEPENDENCIES_IN_COOKED_EXPORTS)
         {
-            (reader.read_le()?, reader.read_le()?, reader.read_le()?, reader.read_le()?, reader.read_le()?)
-        } else { (-1, -1, -1, -1, -1) };
+            (
+                reader.read_le()?,
+                reader.read_le()?,
+                reader.read_le()?,
+                reader.read_le()?,
+                reader.read_le()?,
+            )
+        } else {
+            (-1, -1, -1, -1, -1)
+        };
 
-        let (script_serialization_start_offset, script_serialization_end_offset) = if reader.serialized_with(ObjectVersionUE5::SCRIPT_SERIALIZATION_OFFSET) {
-            (reader.read_le()?, reader.read_le()?)
-        } else { (0, 0) };
+        let (script_serialization_start_offset, script_serialization_end_offset) =
+            if reader.serialized_with(ObjectVersionUE5::SCRIPT_SERIALIZATION_OFFSET) {
+                (reader.read_le()?, reader.read_le()?)
+            } else {
+                (0, 0)
+            };
 
         Ok(Self::ParsedType {
             outer_index,

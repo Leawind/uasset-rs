@@ -68,10 +68,10 @@ use std::{
     num::NonZeroU32,
 };
 
+use crate::serialization::UnrealObjectExport;
 pub use archive::{Archive, CustomVersionSerializationFormat};
 pub use enums::{ObjectVersion, ObjectVersionUE5, PackageFlags};
 pub use error::{Error, InvalidNameIndexError, Result};
-use crate::serialization::UnrealObjectExport;
 
 /// A reference to a name in the [`AssetHeader::names`] name table. You can use [`AssetHeader::resolve_name`] to get a human-readable
 /// string from a `NameReference`. It only makes sense to compare `NameReference`s from the same `AssetHeader`.
@@ -507,11 +507,7 @@ where
             archive.serialized_with(ObjectVersion::VER_UE4_WORLD_LEVEL_INFO);
         let world_tile_info_data_offset = if has_world_tile_info_data {
             let offset = archive.read_le()?;
-            if offset > 0 {
-                Some(offset)
-            } else {
-                None
-            }
+            if offset > 0 { Some(offset) } else { None }
         } else {
             None
         };
@@ -561,11 +557,7 @@ where
         let has_data_resource_offset = archive.serialized_with(ObjectVersionUE5::DATA_RESOURCES);
         let data_resource_offset = if has_data_resource_offset {
             let offset = archive.read_le()?;
-            if offset > 0 {
-                Some(offset)
-            } else {
-                None
-            }
+            if offset > 0 { Some(offset) } else { None }
         } else {
             None
         };

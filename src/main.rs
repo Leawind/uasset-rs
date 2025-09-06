@@ -1,7 +1,8 @@
-use anyhow::{anyhow, bail, ensure, Result};
+use anyhow::{Result, anyhow, bail, ensure};
 use log::{error, trace};
 use serde::{Deserialize, Deserializer};
 use simplelog::{Config, TermLogger, TerminalMode};
+use std::collections::HashMap;
 use std::{
     fs::File,
     io::BufReader,
@@ -9,13 +10,12 @@ use std::{
     path::{Path, PathBuf},
     time,
 };
-use std::collections::HashMap;
 use structopt::StructOpt;
 use structopt_flags::LogLevel;
 use tempfile::TempDir;
+use uasset::enums::ObjectFlags;
 use uasset::{AssetHeader, ObjectReference};
 use walkdir::WalkDir;
-use uasset::enums::ObjectFlags;
 
 const UASSET_EXTENSIONS: [&str; 2] = ["uasset", "umap"];
 
@@ -191,7 +191,7 @@ impl<'de> Deserialize<'de> for PerforceAction {
                 return Err(serde::de::Error::custom(format!(
                     "Invalid PerforceAction '{}'",
                     s
-                )))
+                )));
             }
         })
     }
@@ -233,7 +233,10 @@ fn fetch_perforce_uassets(changelist: NonZeroU32) -> Result<(Option<TempDir>, Ve
     for line in stdout.lines() {
         let record: PerforceFilesRecord = serde_json::from_str(line)?;
         let modified_file = match record.action {
-            PerforceAction::Delete | PerforceAction::MoveDelete | PerforceAction::Purge | PerforceAction::Archive => None,
+            PerforceAction::Delete
+            | PerforceAction::MoveDelete
+            | PerforceAction::Purge
+            | PerforceAction::Archive => None,
             _ => Some(&record.depot_file),
         };
 
@@ -270,8 +273,7 @@ fn fetch_perforce_uassets(changelist: NonZeroU32) -> Result<(Option<TempDir>, Ve
         } else {
             trace!(
                 "ignoring file {} with non-modification action {:?}",
-                record.depot_file,
-                record.action
+                record.depot_file, record.action
             );
         }
     }
@@ -461,25 +463,42 @@ fn main() -> Result<()> {
         Command::ListObjectTypes {
             assets_or_directories,
         } => {
-            let checked_flags = ObjectFlags::Standalone as u32 | ObjectFlags::Public as u32 | ObjectFlags::Transient as u32 | ObjectFlags::ClassDefaultObject as u32;
+            let checked_flags = ObjectFlags::Standalone as u32
+                | ObjectFlags::Public as u32
+                | ObjectFlags::Transient as u32
+                | ObjectFlags::ClassDefaultObject as u32;
             let expected_flags = ObjectFlags::Standalone as u32 | ObjectFlags::Public as u32;
             let asset_paths = recursively_walk_uassets(assets_or_directories);
             let mut asset_types = HashMap::new();
             for asset_path in asset_paths {
                 try_parse_or_log(&asset_path, |header| {
-                    let expected_object_name_start_index = header.package_name.rfind('/').map(|i| i + 1).unwrap_or_default();
-                    let expected_object_name = header.package_name[expected_object_name_start_index..].to_string();
+                    let expected_object_name_start_index = header
+                        .package_name
+                        .rfind('/')
+                        .map(|i| i + 1)
+                        .unwrap_or_default();
+                    let expected_object_name =
+                        header.package_name[expected_object_name_start_index..].to_string();
                     let expected_object_name_index = header.find_name(&expected_object_name);
 
-                    let asset_object = header.exports.iter().find(|export| Some(export.object_name) == expected_object_name_index && export.is_asset && export.object_flags & checked_flags == expected_flags);
+                    let asset_object = header.exports.iter().find(|export| {
+                        Some(export.object_name) == expected_object_name_index
+                            && export.is_asset
+                            && export.object_flags & checked_flags == expected_flags
+                    });
                     let asset_type = asset_object.and_then(|asset_object| {
                         let class_name = match asset_object.class() {
-                            ObjectReference::Export { export_index } => header.exports.get(export_index).map(|e| e.object_name),
-                            ObjectReference::Import { import_index } => header.imports.get(import_index).map(|e| e.object_name),
+                            ObjectReference::Export { export_index } => {
+                                header.exports.get(export_index).map(|e| e.object_name)
+                            }
+                            ObjectReference::Import { import_index } => {
+                                header.imports.get(import_index).map(|e| e.object_name)
+                            }
                             ObjectReference::None => None,
                         };
 
-                        class_name.and_then(|name| header.resolve_name(&name).map(|s| s.to_string()).ok())
+                        class_name
+                            .and_then(|name| header.resolve_name(&name).map(|s| s.to_string()).ok())
                     });
 
                     asset_types.insert(asset_path.display().to_string(), asset_type);

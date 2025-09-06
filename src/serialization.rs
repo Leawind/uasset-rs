@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
 use crate::{
-    archive::{SerializedFlags, SerializedObjectVersion},
     ObjectVersion, ObjectVersionUE5, Result,
+    archive::{SerializedFlags, SerializedObjectVersion},
 };
 use binread::BinReaderExt;
 use std::io::{Read, Seek, SeekFrom};

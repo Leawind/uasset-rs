@@ -1,4 +1,4 @@
-use crate::{enums::ObjectVersionUE5, Error, ObjectVersion, Result};
+use crate::{Error, ObjectVersion, Result, enums::ObjectVersionUE5};
 use binread::BinReaderExt;
 use num_traits::FromPrimitive;
 use std::io::{Read, Seek};
