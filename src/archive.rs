@@ -12,7 +12,6 @@ pub enum CustomVersionSerializationFormat {
     Optimized,
 }
 
-#[derive(Debug)]
 pub struct Archive<R> {
     pub reader: R,
     /// The serialization version used when saving this asset (C++ name: `FileVersionUE4`)
@@ -45,6 +44,7 @@ where
         let _legacy_ue3_version: i32 = reader.read_le()?;
 
         let file_version = reader.read_le()?;
+        let file_version = if file_version == 0 { 514 } else { file_version };
 
         let file_version_ue5 = if legacy_version <= -8 {
             reader.read_le()?

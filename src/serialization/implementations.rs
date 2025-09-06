@@ -402,7 +402,7 @@ impl Skippable for UnrealCompressedChunk {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct UnrealEngineVersion {
     pub major: u16,
     pub minor: u16,

@@ -48,6 +48,8 @@
 //! * `commandline-tool` -
 //!   Allows the building of a `uasset` command line tool that can be used to inspect specific assets.
 
+pub mod leawind;
+
 mod archive;
 pub mod enums;
 mod error;
@@ -85,7 +87,6 @@ pub struct NameReference {
 }
 
 /// A reference to either an import or an export in the asset.
-#[derive(Debug)]
 pub enum ObjectReference {
     None,
     Export { export_index: usize },
@@ -277,7 +278,6 @@ pub struct ThumbnailInfo {
 /// A table of contents for a uasset loaded from disk, containing all the shared package summary information.
 /// This roughly maps to `FPackageFileSummary` in Engine/Source/Runtime/CoreUObject/Public/UObject/PackageFileSummary.h, except we
 /// load some of the indirectly referenced data (i.e. names, imports, exports).
-#[derive(Debug)]
 pub struct AssetHeader<R> {
     pub archive: Archive<R>,
     /// Full size of the asset header (C++ name: `TotalHeaderSize`)
